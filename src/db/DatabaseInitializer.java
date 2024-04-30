@@ -9,7 +9,7 @@ public class DatabaseInitializer {
              Statement stmt = conn.createStatement()) {
 
             String sql = "CREATE TABLE IF NOT EXISTS candidatos (\n"
-                    + "	id integer PRIMARY KEY,\n"
+                    + "	id integer PRIMARY KEY AUTOINCREMENT,\n"
                     + "	nome text NOT NULL,\n"
                     + "	email text NOT NULL UNIQUE,\n"
                     + "	senha text NOT NULL\n"
@@ -17,7 +17,7 @@ public class DatabaseInitializer {
             stmt.execute(sql);
 
             sql = "CREATE TABLE IF NOT EXISTS empresas (\n"
-                    + "	id integer PRIMARY KEY,\n"
+                    + "	id integer PRIMARY KEY AUTOINCREMENT,\n"
                     + "	nome text NOT NULL,\n"
                     + "	email text NOT NULL UNIQUE,\n"
                     + "	senha text NOT NULL\n"

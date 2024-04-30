@@ -8,7 +8,11 @@ public class RequestMessage {
     private String email;
     private String password;
     private String name;
-
+    private String token;
+    public RequestMessage(String operation, String token) {
+        this.operation = operation;
+        this.token =token;
+    }
     public RequestMessage(String operation, String email, String password) {
         this.operation = operation;
         this.email = email;
@@ -25,13 +29,20 @@ public class RequestMessage {
     public String toJsonString() {
         JsonObject jsonObject = new JsonObject();
         jsonObject.put("operation", operation);
+        //jsonObject.put("token", token);//
         JsonObject dataObject = new JsonObject();
         dataObject.put("email", email);
         dataObject.put("password", password);
-
-        dataObject.put("name", name);//
-
+        if (name != null) {
+            dataObject.put("name", name);
+        }
         jsonObject.put("data", dataObject);
+        return jsonObject.toJson();
+    }
+    public String toJsonStringWithToken() {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.put("operation", operation);
+        jsonObject.put("token", token);
         return jsonObject.toJson();
     }
 }

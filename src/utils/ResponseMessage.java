@@ -7,6 +7,10 @@ public class ResponseMessage {
     private String operation;
     private String status;
     private String token;
+    private String email;
+    private String password;
+    private String name;
+    private JsonObject data;
 
     public ResponseMessage(String operation, String status, String token) {
         this.operation = operation;
@@ -14,11 +18,40 @@ public class ResponseMessage {
         this.token = token;
     }
 
-    public String toJsonString() {
+    /*public ResponseMessage(String operation, String status, String email, String password, String name) {
+        this.operation = operation;
+        this.status = status;
+        this.email = email;
+        this.password = password;
+        this.name = name;//
+    }*/
+    public ResponseMessage(String operation, String status, JsonObject data) {
+        this.operation = operation;
+        this.status = status;
+        this.data = data;
+    }
+
+    /*public String toJsonString() {
         JsonObject jsonObject = new JsonObject();
         jsonObject.put("operation", operation);
         jsonObject.put("status", status);
         if (token != null && !token.isEmpty()) {
+            JsonObject dataObject = new JsonObject();
+            dataObject.put("token", token);
+
+            jsonObject.put("data", dataObject);
+        } else {
+            jsonObject.put("data", new JsonObject());
+        }
+        return jsonObject.toJson();
+    }*/
+    public String toJsonString() {
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.put("operation", operation);
+        jsonObject.put("status", status);
+        if (data != null) {
+            jsonObject.put("data", data);
+        } else if (token != null && !token.isEmpty()) {
             JsonObject dataObject = new JsonObject();
             dataObject.put("token", token);
             jsonObject.put("data", dataObject);
@@ -27,4 +60,7 @@ public class ResponseMessage {
         }
         return jsonObject.toJson();
     }
+
 }
+
+
