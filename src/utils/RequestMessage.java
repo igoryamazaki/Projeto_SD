@@ -29,7 +29,6 @@ public class RequestMessage {
     public String toJsonString() {
         JsonObject jsonObject = new JsonObject();
         jsonObject.put("operation", operation);
-        //jsonObject.put("token", token);//
         JsonObject dataObject = new JsonObject();
         dataObject.put("email", email);
         dataObject.put("password", password);

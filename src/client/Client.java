@@ -24,14 +24,14 @@ public class Client {
         int serverPort = Integer.parseInt(reader.readLine());
 
         while (true) {
-            System.out.println("Escolha uma opção:");
+            System.out.println("=== Portal de vagas ===");
             System.out.println("1. Cadastro");
             System.out.println("2. Login");
             System.out.println("3. Visualizar Dados");
             System.out.println("4. Atualização de dados");
             System.out.println("5. Excluir conta");
             System.out.println("6. Logout");
-
+            System.out.println("Escolha uma opção: ");
             int option = Integer.parseInt(reader.readLine());
 
             switch (option) {

@@ -50,6 +50,22 @@ public class Server extends Thread {
                     JsonObject requestJson = (JsonObject) Jsoner.deserialize(jsonMessage);
                     String operation = (String) requestJson.get("operation");
 
+                    // tratamento de erros
+                    /*
+                    if (!Validation.isValidOperation(operation)) {
+                        ResponseMessage invalidOperationResponse = new ResponseMessage(operation, "INVALID_OPERATION", new JsonObject());
+                        out.println(invalidOperationResponse.toJsonString());
+                        continue;
+                    }
+                    JsonObject dataValidation = (JsonObject) requestJson.get("data");
+                    if (!Validation.areFieldsValid(dataValidation)) {
+                        ResponseMessage invalidFieldResponse = new ResponseMessage(operation, "INVALID_FIELD", new JsonObject());
+                        out.println(invalidFieldResponse.toJsonString());
+                        continue;
+                    }
+                    */
+
+
                     if ("LOGIN_CANDIDATE".equals(operation)) {
                         JsonObject data = (JsonObject) requestJson.get("data");
                         String email = (String) data.get("email");
@@ -125,11 +141,9 @@ public class Server extends Thread {
                             try {
                                 Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
                                 int userId = (int) claims.getBody().get("id");
-                                System.out.println("\nuser id:");
-                                System.out.println(userId);
+
                                 try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db");
                                      Statement stmt = conn.createStatement()) {
-                                    //System.out.println("test 3\n");
                                     String sql = "SELECT * FROM candidatos WHERE id = " + userId;
                                     ResultSet rs = stmt.executeQuery(sql);
 
@@ -137,11 +151,6 @@ public class Server extends Thread {
                                         String storedEmail = rs.getString("email");
                                         String storedPassword = rs.getString("senha");
                                         String storedName = rs.getString("nome");
-
-
-                                        System.out.println(storedEmail);
-                                        System.out.println(storedPassword);
-                                        System.out.println(storedName);
 
                                         JsonObject responseData = new JsonObject();
                                         responseData.put("email", storedEmail);
@@ -322,15 +331,3 @@ public class Server extends Thread {
 
     }
 }
-
-/*//para validar token
- if (tokenBlacklist.contains(token)) {
-    // O token foi invalidado, então retorne um erro
-    JsonObject responseData = new JsonObject();
-    ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
-    out.println(errorResponse.toJsonString());
-} else {
-    // O token é válido, então prossiga normalmente
-    // Aqui você colocaria o código para processar a solicitação do usuário
-}
-* */
