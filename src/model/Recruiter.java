@@ -1,12 +1,12 @@
 package model;
 
-public class Candidate {
+public class Recruiter {
     private String name;
     private String email;
     private String password;
     // Outros campos relevantes...
 
-    public Candidate(String name, String email, String password) {
+    public Recruiter(String name, String email, String password) {
         this.name = name;
         this.email = email;
         this.password = password;

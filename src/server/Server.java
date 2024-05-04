@@ -9,6 +9,7 @@ import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import utils.ResponseMessage;
+import utils.Validation;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -51,21 +52,20 @@ public class Server extends Thread {
                     String operation = (String) requestJson.get("operation");
 
                     // tratamento de erros
-                    /*
+
                     if (!Validation.isValidOperation(operation)) {
                         ResponseMessage invalidOperationResponse = new ResponseMessage(operation, "INVALID_OPERATION", new JsonObject());
                         out.println(invalidOperationResponse.toJsonString());
                         continue;
                     }
+/*
                     JsonObject dataValidation = (JsonObject) requestJson.get("data");
                     if (!Validation.areFieldsValid(dataValidation)) {
                         ResponseMessage invalidFieldResponse = new ResponseMessage(operation, "INVALID_FIELD", new JsonObject());
                         out.println(invalidFieldResponse.toJsonString());
                         continue;
                     }
-                    */
-
-
+*/
                     if ("LOGIN_CANDIDATE".equals(operation)) {
                         JsonObject data = (JsonObject) requestJson.get("data");
                         String email = (String) data.get("email");
@@ -81,7 +81,7 @@ public class Server extends Thread {
                                 String storedPassword = rs.getString("senha");
                                 if (storedPassword.equals(password)) {
                                     int userId = rs.getInt("id");
-                                    String key = "DISTRIBUIDOS";
+                                    //String key = "DISTRIBUIDOS";
 
                                     String jwtToken = Jwts.builder()
                                             .claim("id", userId)
@@ -92,7 +92,7 @@ public class Server extends Thread {
                                     ResponseMessage successResponse = new ResponseMessage(operation, "SUCCESS", jwtToken);
                                     out.println(successResponse.toJsonString());
                                 } else {
-                                    ResponseMessage invalidPasswordResponse = new ResponseMessage(operation, "INVALID_PASSWORD", "");
+                                    ResponseMessage invalidPasswordResponse = new ResponseMessage(operation, "INVALID_LOGIN", "");
                                     out.println(invalidPasswordResponse.toJsonString());
                                 }
                             } else {
@@ -130,11 +130,11 @@ public class Server extends Thread {
 
                     } if ("LOOKUP_ACCOUNT_CANDIDATE".equals(operation)) {
                         String token = (String) requestJson.get("token");
+                        System.out.println(token);
 
-                        //System.out.println("test 1\n");
                         if (tokenBlacklist.contains(token)) {
-                            // O token foi invalidado, então retorne um erro
                             JsonObject responseData = new JsonObject();
+                            System.out.println("Invalid token -> black list");
                             ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
                             out.println(errorResponse.toJsonString());
                         }else{
@@ -165,6 +165,7 @@ public class Server extends Thread {
                                 }
                             } catch (Exception e) {
                                 ResponseMessage invalidTokenResponse = new ResponseMessage(operation, "INVALID_TOKEN", "");
+                                System.out.println("Invalid token -> claim");
                                 out.println(invalidTokenResponse.toJsonString());
                             }
                         }
@@ -191,8 +192,7 @@ public class Server extends Thread {
                             JsonObject responseData = new JsonObject();
                             ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
                             out.println(errorResponse.toJsonString());
-                        } else {
-                            // O token é válido, então prossiga normalmente
+                        }else{
                             try {
                                 Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
                                 int userId = (int) claims.getBody().get("id");
@@ -232,15 +232,12 @@ public class Server extends Thread {
                         }
                     }if ("DELETE_ACCOUNT_CANDIDATE".equals(operation)) {
                         String token = (String) requestJson.get("token");
-
-                        // Verifique se o token está na lista de bloqueio
                         if (tokenBlacklist.contains(token)) {
-                            // O token foi invalidado, então retorne um erro
                             JsonObject responseData = new JsonObject();
                             ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
                             out.println(errorResponse.toJsonString());
                         } else {
-                            // O token é válido, então prossiga normalmente
+
                             try {
                                 Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
                                 int userId = (int) claims.getBody().get("id");
