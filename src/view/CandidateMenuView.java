@@ -3,6 +3,7 @@ package view;
 import client.Client;
 import com.github.cliftonlabs.json_simple.JsonObject;
 import com.github.cliftonlabs.json_simple.Jsoner;
+import utils.RequestMessage;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -52,11 +53,10 @@ public class CandidateMenuView extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 int dialogResult = JOptionPane.showConfirmDialog(null, "Você realmente deseja excluir sua conta?", "Aviso", JOptionPane.YES_NO_OPTION);
                 if (dialogResult == JOptionPane.YES_OPTION) {
-                    JsonObject deleteRequest = new JsonObject();
-                    deleteRequest.put("operation", "DELETE_ACCOUNT_CANDIDATE");
-                    deleteRequest.put("token", token);
+                    RequestMessage deleteRequest = new RequestMessage("DELETE_ACCOUNT_CANDIDATE", token);
 
-                    String deleteJsonRequest = deleteRequest.toJson();
+                    String deleteJsonRequest = deleteRequest.toJsonStringWithToken();
+
                     String deleteResponse = client.sendRequestToServer(deleteJsonRequest);
                     JsonObject deleteJson = Jsoner.deserialize(deleteResponse, new JsonObject());
                     String status = (String) deleteJson.get("status");
@@ -75,11 +75,9 @@ public class CandidateMenuView extends JFrame {
         btnLogout.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                JsonObject logoutRequest = new JsonObject();
-                logoutRequest.put("operation", "LOGOUT_CANDIDATE");
-                logoutRequest.put("token", token);
+                RequestMessage logoutRequest = new RequestMessage("LOGOUT_CANDIDATE", token);
 
-                String logoutJsonRequest = logoutRequest.toJson();
+                String logoutJsonRequest = logoutRequest.toJsonStringWithToken();
                 String logoutResponse = client.sendRequestToServer(logoutJsonRequest);
                 JsonObject logoutJson = Jsoner.deserialize(logoutResponse, new JsonObject());
                 String status = (String) logoutJson.get("status");

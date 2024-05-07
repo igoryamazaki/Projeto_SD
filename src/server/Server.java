@@ -15,13 +15,11 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Server extends Thread {
     private Socket clientSocket;
     private BufferedWriter fileWriter;
-    private static List<String> tokenBlacklist = new ArrayList<>();
+   // private static List<String> tokenBlacklist = new ArrayList<>();
     String key = "DISTRIBUIDOS";
 
     public Server(Socket clientSoc, BufferedWriter writer) {
@@ -81,13 +79,19 @@ public class Server extends Thread {
                                 String storedPassword = rs.getString("senha");
                                 if (storedPassword.equals(password)) {
                                     int userId = rs.getInt("id");
-                                    //String key = "DISTRIBUIDOS";
 
                                     String jwtToken = Jwts.builder()
                                             .claim("id", userId)
                                             .claim("role", "CANDIDATE")
                                             .signWith(SignatureAlgorithm.HS256, key)
                                             .compact();
+
+                                    // adicionando o token no bd
+                                    String insertSql = "INSERT INTO active_tokens (user_id, token) VALUES (?, ?)";
+                                    PreparedStatement pstmt = conn.prepareStatement(insertSql);
+                                    pstmt.setInt(1, userId);
+                                    pstmt.setString(2, jwtToken);
+                                    pstmt.executeUpdate();
 
                                     ResponseMessage successResponse = new ResponseMessage(operation, "SUCCESS", jwtToken);
                                     out.println(successResponse.toJsonString());
@@ -132,20 +136,27 @@ public class Server extends Thread {
                         String token = (String) requestJson.get("token");
                         System.out.println(token);
 
-                        if (tokenBlacklist.contains(token)) {
-                            JsonObject responseData = new JsonObject();
-                            System.out.println("Invalid token -> black list");
-                            ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
-                            out.println(errorResponse.toJsonString());
-                        }else{
-                            try {
-                                Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
-                                int userId = (int) claims.getBody().get("id");
+                        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+                            // Verifique se o token está no banco de dados
+                            String sql = "SELECT * FROM active_tokens WHERE token = ?";
+                            PreparedStatement pstmt = conn.prepareStatement(sql);
+                            pstmt.setString(1, token);
+                            ResultSet rs = pstmt.executeQuery();
 
-                                try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db");
-                                     Statement stmt = conn.createStatement()) {
-                                    String sql = "SELECT * FROM candidatos WHERE id = " + userId;
-                                    ResultSet rs = stmt.executeQuery(sql);
+                            if (!rs.next()) {
+                                // O token não está no banco de dados, então é inválido
+                                JsonObject responseData = new JsonObject();
+                                System.out.println("Invalid token -> not in database");
+                                ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
+                                out.println(errorResponse.toJsonString());
+                            } else {
+                                try {
+                                    Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
+                                    int userId = (int) claims.getBody().get("id");
+
+                                    Statement stmt = conn.createStatement(); // Crie o Statement aqui
+                                    sql = "SELECT * FROM candidatos WHERE id = " + userId;
+                                    rs = stmt.executeQuery(sql);
 
                                     if (rs.next()) {
                                         String storedEmail = rs.getString("email");
@@ -160,25 +171,45 @@ public class Server extends Thread {
                                         ResponseMessage successResponse = new ResponseMessage(operation, "SUCCESS", responseData);
                                         out.println(successResponse.toJsonString());
                                     }
-                                } catch (SQLException e) {
-                                    System.err.println(e.getMessage());
+                                } catch (Exception e) {
+                                    ResponseMessage invalidTokenResponse = new ResponseMessage(operation, "INVALID_TOKEN", "");
+                                    System.out.println("Invalid token -> claim");
+                                    out.println(invalidTokenResponse.toJsonString());
                                 }
-                            } catch (Exception e) {
-                                ResponseMessage invalidTokenResponse = new ResponseMessage(operation, "INVALID_TOKEN", "");
-                                System.out.println("Invalid token -> claim");
-                                out.println(invalidTokenResponse.toJsonString());
                             }
+                        } catch (SQLException e) {
+                            System.err.println(e.getMessage());
                         }
 
                     }if ("LOGOUT_CANDIDATE".equals(operation)) {
                         String token = (String) requestJson.get("token");
 
-                        // Adicione o token à lista de bloqueio
-                        tokenBlacklist.add(token);
+                        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+                            // Verifique se o token está no banco de dados
+                            String sql = "SELECT * FROM active_tokens WHERE token = ?";
+                            PreparedStatement pstmt = conn.prepareStatement(sql);
+                            pstmt.setString(1, token);
+                            ResultSet rs = pstmt.executeQuery();
 
-                        JsonObject responseData = new JsonObject();
-                        ResponseMessage successResponse = new ResponseMessage(operation, "SUCCESS", responseData);
-                        out.println(successResponse.toJsonString());
+                            if (!rs.next()) {
+                                // O token não está no banco de dados, então é inválido
+                                JsonObject responseData = new JsonObject();
+                                ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
+                                out.println(errorResponse.toJsonString());
+                            } else {
+                                // Remova o token do banco de dados
+                                sql = "DELETE FROM active_tokens WHERE token = ?";
+                                pstmt = conn.prepareStatement(sql);
+                                pstmt.setString(1, token);
+                                pstmt.executeUpdate();
+
+                                JsonObject responseData = new JsonObject();
+                                ResponseMessage successResponse = new ResponseMessage(operation, "SUCCESS", responseData);
+                                out.println(successResponse.toJsonString());
+                            }
+                        } catch (SQLException e) {
+                            System.err.println(e.getMessage());
+                        }
                     }if ("UPDATE_ACCOUNT_CANDIDATE".equals(operation)) {
                         String token = (String) requestJson.get("token");
                         JsonObject data = (JsonObject) requestJson.get("data");
@@ -186,23 +217,27 @@ public class Server extends Thread {
                         String password = (String) data.get("password");
                         String name = (String) data.get("name");
 
-                        // Verifique se o token está na lista de bloqueio
-                        if (tokenBlacklist.contains(token)) {
-                            // O token foi invalidado, então retorne um erro
-                            JsonObject responseData = new JsonObject();
-                            ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
-                            out.println(errorResponse.toJsonString());
-                        }else{
-                            try {
-                                Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
-                                int userId = (int) claims.getBody().get("id");
+                        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+                            // Verifique se o token está no banco de dados
+                            String sql = "SELECT * FROM active_tokens WHERE token = ?";
+                            PreparedStatement pstmt = conn.prepareStatement(sql);
+                            pstmt.setString(1, token);
+                            ResultSet rs = pstmt.executeQuery();
 
-                                try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db");
-                                     PreparedStatement stmt = conn.prepareStatement("SELECT * FROM candidatos WHERE email = ? AND id != ?")) {
+                            if (!rs.next()) {
+                                // O token não está no banco de dados, então é inválido
+                                JsonObject responseData = new JsonObject();
+                                ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
+                                out.println(errorResponse.toJsonString());
+                            } else {
+                                try {
+                                    Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
+                                    int userId = (int) claims.getBody().get("id");
 
+                                    PreparedStatement stmt = conn.prepareStatement("SELECT * FROM candidatos WHERE email = ? AND id != ?");
                                     stmt.setString(1, email);
                                     stmt.setInt(2, userId);
-                                    ResultSet rs = stmt.executeQuery();
+                                    rs = stmt.executeQuery();
 
                                     if (rs.next()) {
                                         // O email já está sendo usado por outro usuário
@@ -222,42 +257,59 @@ public class Server extends Thread {
                                         ResponseMessage successResponse = new ResponseMessage(operation, "SUCCESS", responseData);
                                         out.println(successResponse.toJsonString());
                                     }
+                                } catch (Exception e) {
+                                    System.err.println("Erro ao validar o token: " + e.getMessage());
+                                    JsonObject responseData = new JsonObject();
+                                    ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
+                                    out.println(errorResponse.toJsonString());
                                 }
-                            } catch (Exception e) {
-                                System.err.println("Erro ao validar o token: " + e.getMessage());
+                            }
+                        } catch (SQLException e) {
+                            System.err.println(e.getMessage());
+                        }
+
+                    }if ("DELETE_ACCOUNT_CANDIDATE".equals(operation)) {
+                        String token = (String) requestJson.get("token");
+
+                        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+                            // Verifique se o token está no banco de dados
+                            String sql = "SELECT * FROM active_tokens WHERE token = ?";
+                            PreparedStatement pstmt = conn.prepareStatement(sql);
+                            pstmt.setString(1, token);
+                            ResultSet rs = pstmt.executeQuery();
+
+                            if (!rs.next()) {
+                                // O token não está no banco de dados, então é inválido
                                 JsonObject responseData = new JsonObject();
                                 ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
                                 out.println(errorResponse.toJsonString());
-                            }
-                        }
-                    }if ("DELETE_ACCOUNT_CANDIDATE".equals(operation)) {
-                        String token = (String) requestJson.get("token");
-                        if (tokenBlacklist.contains(token)) {
-                            JsonObject responseData = new JsonObject();
-                            ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
-                            out.println(errorResponse.toJsonString());
-                        } else {
+                            } else {
+                                try {
+                                    Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
+                                    int userId = (int) claims.getBody().get("id");
 
-                            try {
-                                Jws<Claims> claims = Jwts.parser().setSigningKey(key).parseClaimsJws(token);
-                                int userId = (int) claims.getBody().get("id");
-
-                                try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db");
-                                     PreparedStatement stmt = conn.prepareStatement("DELETE FROM candidatos WHERE id = ?")) {
-
+                                    PreparedStatement stmt = conn.prepareStatement("DELETE FROM candidatos WHERE id = ?");
                                     stmt.setInt(1, userId);
                                     stmt.executeUpdate();
+
+                                    // Remova o token do banco de dados
+                                    sql = "DELETE FROM active_tokens WHERE token = ?";
+                                    pstmt = conn.prepareStatement(sql);
+                                    pstmt.setString(1, token);
+                                    pstmt.executeUpdate();
 
                                     JsonObject responseData = new JsonObject();
                                     ResponseMessage successResponse = new ResponseMessage(operation, "SUCCESS", responseData);
                                     out.println(successResponse.toJsonString());
+                                } catch (Exception e) {
+                                    System.err.println("Erro ao validar o token: " + e.getMessage());
+                                    JsonObject responseData = new JsonObject();
+                                    ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
+                                    out.println(errorResponse.toJsonString());
                                 }
-                            } catch (Exception e) {
-                                System.err.println("Erro ao validar o token: " + e.getMessage());
-                                JsonObject responseData = new JsonObject();
-                                ResponseMessage errorResponse = new ResponseMessage(operation, "INVALID_TOKEN", responseData);
-                                out.println(errorResponse.toJsonString());
                             }
+                        } catch (SQLException e) {
+                            System.err.println(e.getMessage());
                         }
                     }
                 }

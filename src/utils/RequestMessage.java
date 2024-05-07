@@ -42,6 +42,7 @@ public class RequestMessage {
         JsonObject jsonObject = new JsonObject();
         jsonObject.put("operation", operation);
         jsonObject.put("token", token);
+        jsonObject.put("data", new JsonObject());
         return jsonObject.toJson();
     }
 }

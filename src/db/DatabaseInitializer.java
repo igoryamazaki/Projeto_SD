@@ -24,6 +24,12 @@ public class DatabaseInitializer {
                     + ");";
             stmt.execute(sql);
 
+            sql = "CREATE TABLE IF NOT EXISTS active_tokens (\n"
+                    + "	user_id integer,\n"
+                    + "	token text\n"
+                    + ");";
+            stmt.execute(sql);
+
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
