@@ -53,7 +53,6 @@ public class CandidateLoginView extends JFrame{
                 } else {
                     JOptionPane.showMessageDialog(panelCandidateLogin, "Ocorreu um erro. Por favor, tente novamente.");
                 }
-
             }
         });
         btnSignUp.addActionListener(new ActionListener() {
@@ -64,5 +63,4 @@ public class CandidateLoginView extends JFrame{
             }
         });
     }
-
 }

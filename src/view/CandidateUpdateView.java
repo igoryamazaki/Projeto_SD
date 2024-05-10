@@ -22,7 +22,7 @@ public class CandidateUpdateView extends JFrame{
         this.client = client;
         this.token = token;
         setContentPane(panelCandidateUpdate);
-        setTitle("Entrar como");
+        setTitle("Atualizar Dados");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(300,200);
         setLocationRelativeTo(null);
