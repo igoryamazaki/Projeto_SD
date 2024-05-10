@@ -39,7 +39,6 @@ public class ResponseMessage {
         }
         return jsonObject.toJson();
     }
-
 }
 
 
