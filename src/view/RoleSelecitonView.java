@@ -30,7 +30,7 @@ public class RoleSelecitonView extends JFrame {
         btnRecruiter.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                //new RecruiterLoginView();
+                new RecruiterLoginView(client);
                 dispose();
             }
         });

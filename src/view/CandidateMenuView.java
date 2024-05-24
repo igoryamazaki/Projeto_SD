@@ -1,9 +1,11 @@
 package view;
 
 import client.Client;
+import com.github.cliftonlabs.json_simple.JsonArray;
 import com.github.cliftonlabs.json_simple.JsonObject;
 import com.github.cliftonlabs.json_simple.Jsoner;
 import utils.RequestMessage;
+import utils.Skills;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -13,13 +15,23 @@ import java.awt.event.ActionListener;
 public class CandidateMenuView extends JFrame {
     private Client client;
     private String token;
-    private JTable table1;
+    private JTable tableJob;
     private JButton btnLookUp;
     private JButton btnUpdate;
     private JButton btnDelete;
     private JButton btnSkill;
     private JPanel panelCandidateMenu;
     private JButton btnLogout;
+    private JCheckBox checkBoxSkill;
+    private JCheckBox checkBoxExperience;
+    private JComboBox<String> comboBoxSkill;
+    private JTextField txtfExperience;
+    private JCheckBox checkBoxE;
+    private JCheckBox checkBoxOU;
+    private JButton btnSearch;
+    private JTextArea textAreaSearch;
+    private JButton btnEraseSearch;
+    private JsonArray skillset;
 
     public CandidateMenuView(Client client,String token) {
         this.client = client;
@@ -27,15 +39,19 @@ public class CandidateMenuView extends JFrame {
         setContentPane(panelCandidateMenu);
         setTitle("Menu Principal");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(350,250);
+        setSize(350,400);
         setLocationRelativeTo(null);
-        setVisible(true);
 
-        DefaultTableModel model = (DefaultTableModel) table1.getModel();
-        model.addColumn("Cargo");
-        model.addColumn("Descrição");
-        model.addRow(new Object[]{"Desenvolvedor Full Stack", "JavaScript, React, Node.js "});
-        model.addRow(new Object[]{"Analista de Dados", "SQL, Python, R, Excel"});
+        for (String skill : Skills.getSkills()) {
+            comboBoxSkill.addItem(skill);
+        }
+        DefaultListModel<String> skillListModel = new DefaultListModel<>();
+        // Crie um modelo de tabela com os títulos das colunas desejados
+        DefaultTableModel tableModel = new DefaultTableModel(new Object[]{"Habilidades", "Experiencia", "ID"}, 0);
+
+        tableJob.setModel(tableModel);
+
+        setVisible(true);
         btnLookUp.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -92,6 +108,116 @@ public class CandidateMenuView extends JFrame {
                 }
             }
         });
-    }
+        btnSkill.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new CandidateSkillMenuView(client,token);
+                dispose();
+            }
+        });
 
+        btnSearch.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Crie um objeto JsonObject para armazenar os dados da pesquisa
+                JsonObject searchJson = new JsonObject();
+                JsonObject dataJson = new JsonObject();
+
+                // Adicione as habilidades selecionadas ao objeto Json se a checkBoxSkill estiver selecionada
+                if (checkBoxSkill.isSelected()) {
+                    JsonArray skillArray = new JsonArray();
+                    for (int i = 0; i < skillListModel.size(); i++) {
+                        skillArray.add(skillListModel.get(i));
+                    }
+                    dataJson.put("skill", skillArray);
+                }
+
+                // Adicione a experiência ao objeto Json se a checkBoxExperience estiver selecionada
+                if (checkBoxExperience.isSelected()) {
+                    String experience = txtfExperience.getText();
+                    dataJson.put("experience", experience);
+                }
+
+                // Adicione o filtro ao objeto Json apenas se ambas as checkBoxes de habilidade e experiência estiverem selecionadas
+                if (checkBoxSkill.isSelected() && checkBoxExperience.isSelected()) {
+                    if (checkBoxE.isSelected()) {
+                        dataJson.put("filter", "AND");
+                       // checkBoxOU.setSelected(false);
+                    } else if (checkBoxOU.isSelected()) {
+                        dataJson.put("filter", "OR");
+                        //checkBoxE.setSelected(false);
+                    }
+                }
+
+                // Adicione o objeto dataJson ao objeto searchJson
+                searchJson.put("data", dataJson);
+                searchJson.put("operation", "SEARCH_JOB");
+                searchJson.put("token", token);
+
+                // Envie a solicitação para o servidor e obtenha a resposta
+                String searchJsonRequest = searchJson.toJson();
+                String searchResponse = client.sendRequestToServer(searchJsonRequest);
+                JsonObject searchJsonResponse = Jsoner.deserialize(searchResponse, new JsonObject());
+
+                // Verifique o status da resposta
+                String status = (String) searchJsonResponse.get("status");
+                if ("SUCCESS".equals(status)) {
+                    // Se a operação foi bem-sucedida, mostre uma mensagem de sucesso
+                    JOptionPane.showMessageDialog(panelCandidateMenu, "Busca realizada com sucesso!");
+                    // Limpe a tabela de vagas
+                    DefaultTableModel tableModel = (DefaultTableModel) tableJob.getModel();
+                    tableModel.setRowCount(0);
+                    // Adicione as vagas retornadas à tabela de vagas
+                    JsonObject data = (JsonObject) searchJsonResponse.get("data");
+                    JsonArray jobset = (JsonArray) data.get("jobset");
+                    for (Object jobObj : jobset) {
+                        JsonObject job = (JsonObject) jobObj;
+                        tableModel.addRow(new Object[]{job.get("skill").toString(), job.get("experience").toString(), job.get("id").toString()});
+                    }
+                    tableModel.fireTableDataChanged();
+                } else if ("INVALID_TOKEN".equals(status)) {
+                    // Se o token for inválido, mostre uma mensagem de erro
+                    JOptionPane.showMessageDialog(panelCandidateMenu, "Token inválido. Por favor, tente novamente.");
+                } else {
+                    // Se houver algum outro erro, mostre uma mensagem de erro
+                    JOptionPane.showMessageDialog(panelCandidateMenu, "A busca falhou. Por favor, tente novamente.");
+                }
+            }
+        });
+
+
+        comboBoxSkill.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String selectedSkill = (String) comboBoxSkill.getSelectedItem();
+                if (!skillListModel.contains(selectedSkill)) {
+                    skillListModel.addElement(selectedSkill);
+                    if (textAreaSearch.getText().isEmpty()) {
+                        textAreaSearch.setText(selectedSkill);
+                    } else {
+                        textAreaSearch.setText(textAreaSearch.getText() + ", " + selectedSkill);
+                    }
+                }
+            }
+        });
+        checkBoxE.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                checkBoxOU.setSelected(false);
+            }
+        });
+        checkBoxOU.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                checkBoxE.setSelected(false);
+            }
+        });
+        btnEraseSearch.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new CandidateMenuView(client,token);
+                dispose();
+            }
+        });
+    }
 }

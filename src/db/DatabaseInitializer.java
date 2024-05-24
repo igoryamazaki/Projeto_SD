@@ -1,5 +1,7 @@
 package db;
 
+import model.*;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
@@ -8,26 +10,22 @@ public class DatabaseInitializer {
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db");
              Statement stmt = conn.createStatement()) {
 
-            String sql = "CREATE TABLE IF NOT EXISTS candidatos (\n"
-                    + "	id integer PRIMARY KEY AUTOINCREMENT,\n"
-                    + "	nome text NOT NULL,\n"
-                    + "	email text NOT NULL UNIQUE,\n"
-                    + "	senha text NOT NULL\n"
-                    + ");";
+            String sql = Candidate.getTableDefinition();
             stmt.execute(sql);
 
-            sql = "CREATE TABLE IF NOT EXISTS empresas (\n"
-                    + "	id integer PRIMARY KEY AUTOINCREMENT,\n"
-                    + "	nome text NOT NULL,\n"
-                    + "	email text NOT NULL UNIQUE,\n"
-                    + "	senha text NOT NULL\n"
-                    + ");";
+            sql = Recruiter.getTableDefinition();
             stmt.execute(sql);
 
-            sql = "CREATE TABLE IF NOT EXISTS active_tokens (\n"
-                    + "	user_id integer,\n"
-                    + "	token text\n"
-                    + ");";
+            sql = CandidateSkill.getTableDefinition();
+            stmt.execute(sql);
+
+            sql = Skill.getTableDefinition();
+            stmt.execute(sql);
+
+            sql = RecruiterJob.getTableDefinition();
+            stmt.execute(sql);
+
+            sql = Job.getTableDefinition();
             stmt.execute(sql);
 
         } catch (Exception e) {

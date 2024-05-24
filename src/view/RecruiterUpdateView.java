@@ -9,20 +9,20 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class CandidateUpdateView extends JFrame{
+public class RecruiterUpdateView extends JFrame{
     private Client client;
     private String token;
     private JButton btnUpdate;
+    private JButton btnReturn;
     private JTextField txtfUser;
     private JTextField txtfEmail;
+    private JPasswordField txtfIndustry;
+    private JPasswordField txtfDescription;
     private JPasswordField txtfPassword;
-    private JButton btnReturn;
-    private JPanel panelCandidateUpdate;
+    private JPanel panelRecruiterUpdate;
 
-    public CandidateUpdateView(Client client, String token) {
-        this.client = client;
-        this.token = token;
-        setContentPane(panelCandidateUpdate);
+    public RecruiterUpdateView(Client client, String token) {
+        setContentPane(panelRecruiterUpdate);
         setTitle("Atualizar Dados");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(300,200);
@@ -34,31 +34,33 @@ public class CandidateUpdateView extends JFrame{
                 String email = txtfEmail.getText();
                 String password = new String(txtfPassword.getPassword());
                 String name = txtfUser.getText();
+                String industry = txtfIndustry.getText();
+                String description = txtfDescription.getText();
 
-                RequestMessage requestMessage = new RequestMessage("UPDATE_ACCOUNT_CANDIDATE", token, email, password, name);
+                RequestMessage requestMessage = new RequestMessage("UPDATE_ACCOUNT_RECRUITER", token, email, password, name, industry, description);
 
-                String updateJsonRequest = requestMessage.toJsonStringToken();
+                String updateJsonRequest = requestMessage.toJsonStringExtendToken();
                 String updateResponse = client.sendRequestToServer(updateJsonRequest);
                 JsonObject updateJson = Jsoner.deserialize(updateResponse, new JsonObject());
                 String status = (String) updateJson.get("status");
 
                 if ("SUCCESS".equals(status)) {
-                    JOptionPane.showMessageDialog(panelCandidateUpdate, "Atualização realizada com sucesso!");
-                    new CandidateMenuView(client, token);
+                    JOptionPane.showMessageDialog(panelRecruiterUpdate, "Atualização realizada com sucesso!");
+                    new RecruiterMenuView(client, token);
                     dispose();
                 } else if ("INVALID_TOKEN".equals(status)) {
-                    JOptionPane.showMessageDialog(panelCandidateUpdate, "Token inválido. Por favor, tente novamente.");
+                    JOptionPane.showMessageDialog(panelRecruiterUpdate, "Token inválido. Por favor, tente novamente.");
                 } else if ("INVALID_EMAIL".equals(status)) {
-                    JOptionPane.showMessageDialog(panelCandidateUpdate, "Email inválido. Por favor, tente novamente com um email diferente.");
+                    JOptionPane.showMessageDialog(panelRecruiterUpdate, "Email inválido. Por favor, tente novamente com um email diferente.");
                 } else {
-                    JOptionPane.showMessageDialog(panelCandidateUpdate, "A atualização falhou. Por favor, tente novamente.");
+                    JOptionPane.showMessageDialog(panelRecruiterUpdate, "A atualização falhou. Por favor, tente novamente.");
                 }
             }
         });
         btnReturn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                new CandidateMenuView(client,token);
+                new RecruiterMenuView(client,token);
                 dispose();
             }
         });
