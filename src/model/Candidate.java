@@ -11,6 +11,14 @@ public class Candidate {
         this.email = email;
         this.password = password;
     }
+    public static String getTableDefinition() {
+        return "CREATE TABLE IF NOT EXISTS candidatos (\n"
+                + "	id integer PRIMARY KEY AUTOINCREMENT,\n"
+                + "	nome text NOT NULL,\n"
+                + "	email text NOT NULL UNIQUE,\n"
+                + "	senha text NOT NULL\n"
+                + ");";
+    }
 
     public String getName() {
         return this.name;

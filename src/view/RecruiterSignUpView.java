@@ -9,27 +9,29 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class CandidateSignUpView extends JFrame{
+public class RecruiterSignUpView extends JFrame{
     private JButton btnSignUp;
     private JButton btnReturn;
     private JTextField txtfUser;
     private JTextField txtfEmail;
     private JPasswordField txtfPassword;
-    private JPanel panelCandidateSignUP;
+    private JTextField txtfIndustry;
+    private JTextField txtfDescription;
+    private JPanel panelRecruiterSignUP;
     private Client client;
 
-    public CandidateSignUpView(Client client) {
+    public RecruiterSignUpView(Client client) {
         this.client = client;
-        setContentPane(panelCandidateSignUP);
-        setTitle("Cadastro candidato");
+        setContentPane(panelRecruiterSignUP);
+        setTitle("Cadastro recrutador");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(300,200);
+        setSize(300,220);
         setLocationRelativeTo(null);
         setVisible(true);
         btnReturn.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                new CandidateLoginView(client);
+                new RecruiterLoginView(client);
                 dispose();
             }
         });
@@ -39,19 +41,21 @@ public class CandidateSignUpView extends JFrame{
                 String email = txtfEmail.getText();
                 String password = new String(txtfPassword.getPassword());
                 String name = txtfUser.getText();
+                String industry = txtfIndustry.getText();
+                String description = txtfDescription.getText();
 
-                RequestMessage signupRequest = new RequestMessage("SIGNUP_CANDIDATE", email, password, name);
-                String signupJsonRequest = signupRequest.toJsonString();
+                RequestMessage signupRequest = new RequestMessage("SIGNUP_RECRUITER", email, password, name, industry, description);
+                String signupJsonRequest = signupRequest.toJsonStringExtend();
 
                 String signupResponse = client.sendRequestToServer(signupJsonRequest);
                 JsonObject signupJson = Jsoner.deserialize(signupResponse, new JsonObject());
                 String status = (String) signupJson.get("status");
                 if ("SUCCESS".equals(status)) {
-                    JOptionPane.showMessageDialog(panelCandidateSignUP, "Cadastro realizado com sucesso!");
-                    new CandidateLoginView(client);
+                    JOptionPane.showMessageDialog(panelRecruiterSignUP, "Cadastro realizado com sucesso!");
+                    new RecruiterLoginView(client);
                     dispose();
                 } else {
-                    JOptionPane.showMessageDialog(panelCandidateSignUP, "O cadastro falhou. Por favor, tente novamente.");
+                    JOptionPane.showMessageDialog(panelRecruiterSignUP, "O cadastro falhou. Por favor, tente novamente.");
                 }
             }
         });

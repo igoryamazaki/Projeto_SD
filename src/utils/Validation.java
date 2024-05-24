@@ -7,8 +7,19 @@ import java.util.List;
 
 public class Validation {
     public static boolean isValidOperation(String operation) {
-        // Adicione todas as operações válidas a esta lista
-        List<String> validOperations = Arrays.asList("LOGIN_CANDIDATE", "SIGNUP_CANDIDATE", "LOOKUP_ACCOUNT_CANDIDATE", "LOGOUT_CANDIDATE", "UPDATE_ACCOUNT_CANDIDATE", "DELETE_ACCOUNT_CANDIDATE");
+        List<String> validOperations = Arrays.asList(
+                "LOGIN_CANDIDATE",
+                "SIGNUP_CANDIDATE",
+                "LOOKUP_ACCOUNT_CANDIDATE",
+                "LOGOUT_CANDIDATE",
+                "UPDATE_ACCOUNT_CANDIDATE",
+                "DELETE_ACCOUNT_CANDIDATE",
+                "LOGIN_RECRUITER",
+                "SIGNUP_RECRUITER",
+                "LOOKUP_ACCOUNT_RECRUITER",
+                "LOGOUT_RECRUITER",
+                "UPDATE_ACCOUNT_RECRUITER",
+                "DELETE_ACCOUNT_RECRUITER");
         return validOperations.contains(operation);
     }
     public static boolean areFieldsValidSignup(JsonObject data) {

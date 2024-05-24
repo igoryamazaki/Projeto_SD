@@ -9,30 +9,30 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class CandidateLoginView extends JFrame{
+public class RecruiterLoginView extends JFrame{
     private Client client;
     private JTextField txtfEmail;
-    private JButton entrarButton;
     private JPasswordField txtfPassword;
+    private JButton btnLogin;
     private JButton btnSignUp;
     private JPanel panelCandidateLogin;
     private String token;
 
-    public CandidateLoginView(Client client) {
+    public RecruiterLoginView(Client client) {
         this.client = client;
         setContentPane(panelCandidateLogin);
-        setTitle("Login Candidato");
+        setTitle("Login Recrutador");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(290,160);
         setLocationRelativeTo(null);
         setVisible(true);
-        entrarButton.addActionListener(new ActionListener() {
+        btnLogin.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String email = txtfEmail.getText();
                 String password = new String(txtfPassword.getPassword());
 
-                RequestMessage loginRequest = new RequestMessage("LOGIN_CANDIDATE", email, password);
+                RequestMessage loginRequest = new RequestMessage("LOGIN_RECRUITER", email, password);
                 String loginJsonRequest = loginRequest.toJsonString();
 
                 String loginResponse = client.sendRequestToServer(loginJsonRequest);
@@ -44,11 +44,11 @@ public class CandidateLoginView extends JFrame{
                 }
                 if ("SUCCESS".equals(status)) {
                     // Se o login for bem-sucedido, vá para a próxima tela
-                    new CandidateMenuView(client,token);
+                    new RecruiterMenuView(client,token);
                     dispose();
                 } else if ("INVALID_LOGIN".equals(status)) {
                     JOptionPane.showMessageDialog(panelCandidateLogin, "Login inválido. Por favor, tente novamente.");
-                } else {
+                }  else {
                     JOptionPane.showMessageDialog(panelCandidateLogin, "Ocorreu um erro. Por favor, tente novamente.");
                 }
             }
@@ -56,9 +56,10 @@ public class CandidateLoginView extends JFrame{
         btnSignUp.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                new CandidateSignUpView(client);
+                new RecruiterSignUpView(client);
                 dispose();
             }
         });
     }
+
 }

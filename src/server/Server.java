@@ -34,7 +34,8 @@ public class Server extends Thread {
                 String jsonMessage = in.readLine();
 
                 MessageSender messageSender = new MessageSender(out);
-                OperationExecutorCandidate operationExecutor = new OperationExecutorCandidate(out);
+                OperationExecutorCandidate candidate = new OperationExecutorCandidate(out);
+                OperationExecutorRecruiter recruiter = new OperationExecutorRecruiter(out);
 
                 System.out.println("[Receiving]: " + jsonMessage);
                 if (jsonMessage != null && jsonMessage.equalsIgnoreCase("sair")) {
@@ -54,22 +55,40 @@ public class Server extends Thread {
                     } else {
                         switch (operation) {
                             case "LOGIN_CANDIDATE":
-                                operationExecutor.executeLoginCandidate(requestJson);
+                                candidate.executeLoginCandidate(requestJson);
                                 break;
                             case "SIGNUP_CANDIDATE":
-                                operationExecutor.executeSignupCandidate(requestJson);
+                                candidate.executeSignupCandidate(requestJson);
                                 break;
                             case "LOOKUP_ACCOUNT_CANDIDATE":
-                                operationExecutor.executeLookupCandidate(requestJson);
+                                candidate.executeLookupCandidate(requestJson);
                                 break;
                             case "LOGOUT_CANDIDATE":
-                                operationExecutor.executeLogoutCandidate(requestJson);
+                                candidate.executeLogoutCandidate(requestJson);
                                 break;
                             case "UPDATE_ACCOUNT_CANDIDATE":
-                                operationExecutor.executeUpdateCandidate(requestJson);
+                                candidate.executeUpdateCandidate(requestJson);
                                 break;
                             case "DELETE_ACCOUNT_CANDIDATE":
-                                operationExecutor.executeDeleteCandidate(requestJson);
+                                candidate.executeDeleteCandidate(requestJson);
+                                break;
+                            case "LOGIN_RECRUITER":
+                                recruiter.executeLoginRecruiter(requestJson);
+                                break;
+                            case "SIGNUP_RECRUITER":
+                                recruiter.executeSignupRecruiter(requestJson);
+                                break;
+                            case "LOOKUP_ACCOUNT_RECRUITER":
+                                recruiter.executeLookupRecruiter(requestJson);
+                                break;
+                            case "LOGOUT_RECRUITER":
+                                recruiter.executeLogoutRecruiter(requestJson);
+                                break;
+                            case "UPDATE_ACCOUNT_RECRUITER":
+                                recruiter.executeUpdateRecruiter(requestJson);
+                                break;
+                            case "DELETE_ACCOUNT_RECRUITER":
+                                recruiter.executeDeleteRecruiter(requestJson);
                                 break;
                         }
                     }
