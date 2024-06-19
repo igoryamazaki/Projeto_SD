@@ -537,7 +537,6 @@ public void executeIncludeSkill(JsonObject requestJson) {
     }
     public void executeLookUpSkillSet(JsonObject requestJson) {
         String token = (String) requestJson.get("token");
-
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
             // Verifique se o token está no banco de dados
             String sql = "SELECT * FROM active_tokens WHERE token = ?";
