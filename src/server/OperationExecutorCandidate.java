@@ -11,8 +11,10 @@ import utils.Validation;
 
 import java.io.PrintWriter;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 public class OperationExecutorCandidate {
     private MessageSender messageSender;
@@ -537,7 +539,6 @@ public void executeIncludeSkill(JsonObject requestJson) {
     }
     public void executeLookUpSkillSet(JsonObject requestJson) {
         String token = (String) requestJson.get("token");
-
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
             // Verifique se o token está no banco de dados
             String sql = "SELECT * FROM active_tokens WHERE token = ?";
@@ -723,27 +724,8 @@ public void executeIncludeSkill(JsonObject requestJson) {
                     String selectSql = "SELECT * FROM recrutador_vagas rv JOIN vagas v ON rv.vaga_id = v.id";
 
                     // Verifica qual tipo de busca é e constrói a consulta SQL de acordo
-                    /*if (skillArray != null && experience == null) {
-                        // Busca apenas por habilidades
-                        selectSql += " WHERE v.habilidade IN (" + String.join(",", Collections.nCopies(skillArray.size(), "?")) + ")";
-                    } else if (skillArray == null && experience != null) {
-                        // Busca apenas por experiência
-                        selectSql += " WHERE v.experiencia = ?";
-                    } else if (skillArray != null && experience != null) {
-                        // Busca combinada de habilidades e experiência com filtro lógico
-                        String skillCondition = "v.habilidade IN (" + String.join(",", Collections.nCopies(skillArray.size(), "?")) + ")";
-                        String experienceCondition = "v.experiencia = ?";
-
-                        if (filter.equals("AND")) {
-                            selectSql += " WHERE (" + skillCondition + ") AND (" + experienceCondition + ")";
-                        } else {
-                            selectSql += " WHERE (" + skillCondition + ") OR (" + experienceCondition + ")";
-                        }
-*/
                     if (skillArray != null && experience == null) {
                         // Busca apenas por habilidades
-                        //selectSql += " WHERE v.habilidade IN (" + String.join(",", Collections.nCopies(skillArray.size(), "?")) + ")";
-                        //selectSql += " AND v.experiencia <= ?";
                         selectSql += " WHERE v.habilidade IN (" + String.join(",", Collections.nCopies(skillArray.size(), "?")) + ")";
                     } else if (skillArray == null && experience != null) {
                         // Busca apenas por experiência
@@ -777,15 +759,22 @@ public void executeIncludeSkill(JsonObject requestJson) {
                     JsonArray jobset = new JsonArray();
 
                     while (rs.next()) {
-                        String foundSkill = rs.getString("habilidade");
-                        String foundExperience = rs.getString("experiencia");
-                        int id = rs.getInt("id");
+                        int searchable = rs.getInt("divulgavel");
+                        if(searchable == 1) {
+                            String foundSkill = rs.getString("habilidade");
+                            String foundExperience = rs.getString("experiencia");
+                            int id = rs.getInt("id");
 
-                        JsonObject job = new JsonObject();
-                        job.put("skill", foundSkill);
-                        job.put("experience", foundExperience);
-                        job.put("id", id);
-                        jobset.add(job);
+                            int foundAvailable = rs.getInt("disponivel");
+                            String available = (foundAvailable == 1) ? "YES" : "NO";
+
+                            JsonObject job = new JsonObject();
+                            job.put("skill", foundSkill);
+                            job.put("experience", foundExperience);
+                            job.put("id", id);
+                            job.put("available", available);
+                            jobset.add(job);
+                        }
                     }
 
                     JsonObject responseData = new JsonObject();
@@ -804,96 +793,146 @@ public void executeIncludeSkill(JsonObject requestJson) {
         }
     }
 
-
-/*
-    public void executeSearchJob(JsonObject requestJson) {
-        JsonObject data = (JsonObject) requestJson.get("data");
+    public void executeGetCompany(JsonObject requestJson) {
         String token = (String) requestJson.get("token");
-        JsonArray skillArray = data.get("skill") != null ? (JsonArray) data.get("skill") : null;
-        String experience = data.get("experience") != null ? (String) data.get("experience") : null;
-        String filter = data.get("filter") != null ? (String) data.get("filter") : null;
 
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
-            // Verifique se o token está no banco de dados
-            String sql = "SELECT * FROM active_tokens WHERE token = ?";
-            PreparedStatement pstmt = conn.prepareStatement(sql);
-            pstmt.setString(1, token);
-            ResultSet rs = pstmt.executeQuery();
+            // Verifique se o token é válido
+            String tokenSql = "SELECT * FROM active_tokens WHERE token = ?";
+            PreparedStatement tokenPstmt = conn.prepareStatement(tokenSql);
+            tokenPstmt.setString(1, token);
+            ResultSet tokenRs = tokenPstmt.executeQuery();
 
-            if (!rs.next()) {
-                // O token não está no banco de dados, então é inválido
-                messageSender.sendMessage("SEARCH_JOB", "INVALID_TOKEN", new JsonObject());
-                System.out.println("invalid token 1: ");
+            if (!tokenRs.next()) {
+                messageSender.sendMessage("GET_COMPANY", "INVALID_TOKEN", "");
+                System.out.println("Token inválido.");
+            } else {
+              try {
+                  // Recupere o ID do usuário (candidato) a partir do token
+                  Jws<Claims> claims = jwtManager.validateToken(token);
+                  String userIdString = (String) claims.getBody().get("id");
+                  int userId = Integer.parseInt(userIdString);
+
+                  // Verifique se o candidato existe na tabela candidato_vagas
+                  String candidateExistsSql = "SELECT COUNT(*) FROM candidato_vagas WHERE candidato_id = ?";
+                  PreparedStatement candidateExistsPstmt = conn.prepareStatement(candidateExistsSql);
+                  candidateExistsPstmt.setInt(1, userId);
+                  ResultSet candidateExistsRs = candidateExistsPstmt.executeQuery();
+
+                  if (candidateExistsRs.next() && candidateExistsRs.getInt(1) > 0) {
+                      // Consulta ao banco de dados para obter as empresas que escolheram o candidato
+                      String companySql = "SELECT nome, industria, email, descricao FROM recrutador WHERE id IN (SELECT recrutador_id FROM candidato_vagas WHERE candidato_id = ?)";
+                      PreparedStatement companyPstmt = conn.prepareStatement(companySql);
+                      companyPstmt.setInt(1, userId);
+                      ResultSet companyRs = companyPstmt.executeQuery();
+
+                      List<JsonObject> companyList = new ArrayList<>();
+                      while (companyRs.next()) {
+                          JsonObject companyData = new JsonObject();
+                          companyData.put("name", companyRs.getString("nome"));
+                          companyData.put("industry", companyRs.getString("industria"));
+                          companyData.put("email", companyRs.getString("email"));
+                          companyData.put("description", companyRs.getString("descricao"));
+                          companyList.add(companyData);
+                      }
+
+                      // Crie o objeto JSON de resposta
+                      JsonObject responseJson = new JsonObject();
+                      JsonObject responseData = new JsonObject();
+                      responseData.put("company_size", companyList.size());
+                      responseData.put("company", companyList);
+                      responseJson.put("data", responseData);
+
+                      // Envie a resposta usando o messageSender
+                      messageSender.sendMessage("GET_COMPANY", "SUCCESS", responseJson);
+                  } else {
+                     // messageSender.sendMessage("GET_COMPANY", "INVALID_TOKEN", "");
+                      JsonObject responseJson = new JsonObject();
+                      JsonObject responseData = new JsonObject();
+                      responseData.put("company_size", "");
+                      responseData.put("company", new JsonArray()); // Lista vazia
+                      responseJson.put("data", responseData);
+
+                      messageSender.sendMessage("GET_COMPANY", "SUCCESS", responseJson);
+                      System.out.println("Candidato não encontrado na tabela candidato_vagas. 1: ");
+                  }
+              }catch(Exception e){
+                  //messageSender.sendMessage("GET_COMPANY", "INVALID_TOKEN", "");
+                  JsonObject responseJson = new JsonObject();
+                  JsonObject responseData = new JsonObject();
+                  responseData.put("company_size", "");
+                  responseData.put("company", new JsonArray()); // Lista vazia
+                  responseJson.put("data", responseData);
+
+                  messageSender.sendMessage("GET_COMPANY", "SUCCESS", responseJson);
+                  System.out.println("Candidato não encontrado na tabela candidato_vagas. 2: " + e);
+              }
+            }
+        } catch (SQLException e) {
+           // messageSender.sendMessage("GET_COMPANY", "INVALID_TOKEN", new JsonObject());
+            JsonObject responseJson = new JsonObject();
+            JsonObject responseData = new JsonObject();
+            responseData.put("company_size", "");
+            responseData.put("company", new JsonArray()); // Lista vazia
+            responseJson.put("data", responseData);
+
+            messageSender.sendMessage("GET_COMPANY", "SUCCESS", responseJson);
+            System.err.println(e.getMessage());
+        }
+    }
+
+
+   /* public void getCompany(JsonObject requestJson) {
+        String token = (String) requestJson.get("token");
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+            // Verifique se o token é válido
+            String tokenSql = "SELECT * FROM active_tokens WHERE token = ?";
+            PreparedStatement tokenPstmt = conn.prepareStatement(tokenSql);
+            tokenPstmt.setString(1, token);
+            ResultSet tokenRs = tokenPstmt.executeQuery();
+
+            if (!tokenRs.next()) {
+                messageSender.sendMessage("GET_COMPANY", "INVALID_TOKEN", "");
+                System.out.println("Token inválido.");
             } else {
                 try {
+                    // Recupere o ID do usuário (candidato) a partir do token
                     Jws<Claims> claims = jwtManager.validateToken(token);
                     String userIdString = (String) claims.getBody().get("id");
                     int userId = Integer.parseInt(userIdString);
 
-                    // O token é válido, então prossiga com a busca da vaga
-                    String selectSql = "SELECT * FROM recrutador_vagas rv JOIN vagas v ON rv.vaga_id = v.id";
-                    boolean hasSkill = skillArray != null && !skillArray.isEmpty();
-                    boolean hasExperience = experience != null && !experience.isEmpty();
+                    // Consulta ao banco de dados para obter as empresas que escolheram o candidato
+                    String companySql = "SELECT name, industry, email, description FROM empresas WHERE candidato_id = ?";
+                    PreparedStatement companyPstmt = conn.prepareStatement(companySql);
+                    companyPstmt.setInt(1, userId);
+                    ResultSet companyRs = companyPstmt.executeQuery();
 
-                    if (hasSkill || hasExperience) {
-                        selectSql += " WHERE";
-                        if (hasSkill) {
-                            selectSql += " v.habilidade IN (";
-                            for (int i = 0; i < skillArray.size(); i++) {
-                                selectSql += "?";
-                                if (i < skillArray.size() - 1) {
-                                    selectSql += ",";
-                                }
-                            }
-                            selectSql += ")";
-                            if (hasExperience) {
-                                selectSql += filter.equals("E") ? " AND" : " OR";
-                            }
-                        }
-                        if (hasExperience) {
-                            selectSql += " v.experiencia = ?";
-                        }
+                    List<JsonObject> companyList = new ArrayList<>();
+                    while (companyRs.next()) {
+                        JsonObject companyData = new JsonObject();
+                        companyData.put("name", companyRs.getString("name"));
+                        companyData.put("industry", companyRs.getString("industry"));
+                        companyData.put("email", companyRs.getString("email"));
+                        companyData.put("description", companyRs.getString("description"));
+                        companyList.add(companyData);
                     }
 
-                    PreparedStatement selectStmt = conn.prepareStatement(selectSql);
-                    int index = 1;
-                    if (hasSkill) {
-                        for (Object skill : skillArray) {
-                            selectStmt.setString(index++, (String) skill);
-                        }
-                    }
-                    if (hasExperience) {
-                        selectStmt.setString(index++, experience);
-                    }
-
-                    rs = selectStmt.executeQuery();
-
-                    JsonArray jobset = new JsonArray();
-                    while (rs.next()) {
-                        // A vaga foi encontrada, então adicione os detalhes da vaga ao conjunto de vagas
-                        String foundSkill = rs.getString("habilidade");
-                        String foundExperience = rs.getString("experiencia");
-                        int id = rs.getInt("id");
-
-                        JsonObject job = new JsonObject();
-                        job.put("skill", foundSkill);
-                        job.put("experience", foundExperience);
-                        job.put("id", id);
-                        jobset.add(job);
-                    }
-
-                    // Crie o objeto de resposta
+                    // Crie o objeto JSON de resposta
+                    JsonObject responseJson = new JsonObject();
                     JsonObject responseData = new JsonObject();
-                    responseData.put("jobset_size", jobset.size());
-                    responseData.put("jobset", jobset);
+                    responseData.put("company_size", companyList.size());
+                    responseData.put("company", companyList);
+                    responseJson.put("data", responseData);
 
-                    messageSender.sendMessage("SEARCH_JOB", "SUCCESS", responseData);
-                } catch (Exception e) {
-                    messageSender.sendMessage("SEARCH_JOB", "INVALID_TOKEN", new JsonObject());
-                    System.out.println("invalid token 2: "+e);
+                    // Envie a resposta usando o messageSender
+                    messageSender.sendMessage("GET_COMPANY", "SUCCESS", responseJson);
+                }catch (Exception e){
+                    messageSender.sendMessage("GET_COMPANY", "INVALID_TOKEN", new JsonObject());
                 }
             }
         } catch (SQLException e) {
+            messageSender.sendMessage("GET_COMPANY", "INVALID_TOKEN", new JsonObject());
             System.err.println(e.getMessage());
         }
     }

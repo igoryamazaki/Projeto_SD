@@ -10,6 +10,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Objects;
 
 public class RecruiterJobMenuView extends JFrame{
     private Client client;
@@ -21,6 +22,10 @@ public class RecruiterJobMenuView extends JFrame{
     private JButton btnReturn;
     private JList listJobs;
     private JPanel panelMenuJob;
+    private JButton btnNoAvailable;
+    private JButton btnYesAvailable;
+    private JButton btnYesSearchable;
+    private JButton btnNoSearchable;
 
     public RecruiterJobMenuView(Client client, String token) {
         this.client = client;
@@ -28,7 +33,7 @@ public class RecruiterJobMenuView extends JFrame{
         setContentPane(panelMenuJob);
         setTitle("Menu de Vagas");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(400,200);
+        setSize(400,310);
         setLocationRelativeTo(null);
 
         setVisible(true);
@@ -101,20 +106,6 @@ public class RecruiterJobMenuView extends JFrame{
                     // Nenhum item está selecionado na lista
                     JOptionPane.showMessageDialog(panelMenuJob, "Por favor, selecione um trabalho.");
                 } else {
-                    // Obtenha o trabalho associado ao item selecionado
-                    /*
-                    JsonObject jobData = (JsonObject) jobset.get(index);
-                    String skill = (String) jobData.get("skill");
-
-                    // Crie o objeto JSON para a operação DELETE_JOB
-                    JsonObject deleteJobRequest = new JsonObject();
-                    deleteJobRequest.put("operation", "DELETE_JOB");
-                    deleteJobRequest.put("token", token);
-                    JsonObject data = new JsonObject();
-                    data.put("skill", skill);
-                    deleteJobRequest.put("data", data);
-*/
-
                     JsonObject jobData = (JsonObject) jobset.get(index);
                     String idJob = (String) jobData.get("id");
 
@@ -190,10 +181,15 @@ public class RecruiterJobMenuView extends JFrame{
                         String status = (String) lookupSkillJson.get("status");
                         if ("SUCCESS".equals(status)) {
                             JsonObject responseData = (JsonObject) lookupSkillJson.get("data");
-                            String skill = (String) responseData.get("skill"); // Alteração aqui para mostrar a habilidade
+                            String skill = (String) responseData.get("skill");
                             String experience = (String) responseData.get("experience");
+                            String searchable = (String) responseData.get("searchable");
+                            String available = (String) responseData.get("available");
 
-                            JOptionPane.showMessageDialog(panelMenuJob, "ID: " + jobId + "\nHabilidade: " + skill + "\nExperiência: " + experience); } else if ("INVALID_TOKEN".equals(status)) {
+                            String searchableText = (Objects.equals(searchable, "YES")) ? "SIM" : "NÃO";
+                            String availableText = (Objects.equals(available, "YES")) ? "SIM" : "NÃO";
+
+                            JOptionPane.showMessageDialog(panelMenuJob, "ID: " + jobId + "\nHabilidade: " + skill + "\nExperiência: " + experience + "\nDisponível: " + availableText + "\nDivulgável: " + searchableText ); } else if ("INVALID_TOKEN".equals(status)) {
                             // Se o token for inválido, mostre uma mensagem de erro
                             JOptionPane.showMessageDialog(panelMenuJob, "Token inválido. Por favor, tente novamente.");
                         } else if ("JOB_NOT_FOUND".equals(status)) {
@@ -202,6 +198,174 @@ public class RecruiterJobMenuView extends JFrame{
                             // Se houver algum outro erro, mostre uma mensagem de erro
                             JOptionPane.showMessageDialog(panelMenuJob, "A busca da habilidade falhou. Por favor, tente novamente.");
                         }
+                    }
+                }
+            }
+        });
+        btnYesAvailable.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int index = listJobs.getSelectedIndex();
+                if (index == -1) {
+                    // Nenhum item está selecionado na lista
+                    JOptionPane.showMessageDialog(panelMenuJob, "Por favor, selecione uma habilidade.");
+                } else {
+                    JsonObject jobData = (JsonObject) jobset.get(index);
+                    String jobId = (String) jobData.get("id");
+
+                    // Crie o objeto JSON para a operação SET_JOB_AVAILABLE com "YES"
+                    JsonObject setJobAvailableRequest = new JsonObject();
+                    setJobAvailableRequest.put("operation", "SET_JOB_AVAILABLE");
+                    setJobAvailableRequest.put("token", token);
+                    JsonObject data = new JsonObject();
+                    data.put("id", jobId);
+                    data.put("available", "YES");
+                    setJobAvailableRequest.put("data", data);
+
+                    // Envie a solicitação para o servidor e obtenha a resposta
+                    String setJobAvailableJsonRequest = setJobAvailableRequest.toJson();
+                    String setJobAvailableResponse = client.sendRequestToServer(setJobAvailableJsonRequest);
+                    JsonObject setJobAvailableJson = Jsoner.deserialize(setJobAvailableResponse, new JsonObject());
+
+                    // Verifique o status da resposta
+                    String status = (String) setJobAvailableJson.get("status");
+                    if ("SUCCESS".equals(status)) {
+                        // Exiba a mensagem de sucesso
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga definida como disponível com sucesso!");
+                    } else if ("INVALID_TOKEN".equals(status)) {
+                        // Se o token for inválido, mostre uma mensagem de erro
+                        JOptionPane.showMessageDialog(panelMenuJob, "Token inválido. Por favor, tente novamente.");
+                    } else if ("JOB_NOT_FOUND".equals(status)) {
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga não encontrada. Por favor, tente novamente.");
+                    } else {
+                        // Se houver algum outro erro, mostre uma mensagem de erro genérica
+                        JOptionPane.showMessageDialog(panelMenuJob, "Ocorreu um erro. Por favor, tente novamente.");
+                    }
+                }
+            }
+        });
+        btnNoAvailable.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int index = listJobs.getSelectedIndex();
+                if (index == -1) {
+                    // Nenhum item está selecionado na lista
+                    JOptionPane.showMessageDialog(panelMenuJob, "Por favor, selecione uma habilidade.");
+                } else {
+                    JsonObject jobData = (JsonObject) jobset.get(index);
+                    String jobId = (String) jobData.get("id");
+
+                    // Crie o objeto JSON para a operação SET_JOB_AVAILABLE com "YES"
+                    JsonObject setJobAvailableRequest = new JsonObject();
+                    setJobAvailableRequest.put("operation", "SET_JOB_AVAILABLE");
+                    setJobAvailableRequest.put("token", token);
+                    JsonObject data = new JsonObject();
+                    data.put("id", jobId);
+                    data.put("available", "NO");
+                    setJobAvailableRequest.put("data", data);
+
+                    // Envie a solicitação para o servidor e obtenha a resposta
+                    String setJobAvailableJsonRequest = setJobAvailableRequest.toJson();
+                    String setJobAvailableResponse = client.sendRequestToServer(setJobAvailableJsonRequest);
+                    JsonObject setJobAvailableJson = Jsoner.deserialize(setJobAvailableResponse, new JsonObject());
+
+                    // Verifique o status da resposta
+                    String status = (String) setJobAvailableJson.get("status");
+                    if ("SUCCESS".equals(status)) {
+                        // Exiba a mensagem de sucesso
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga definida como indisponível com sucesso!");
+                    } else if ("INVALID_TOKEN".equals(status)) {
+                        // Se o token for inválido, mostre uma mensagem de erro
+                        JOptionPane.showMessageDialog(panelMenuJob, "Token inválido. Por favor, tente novamente.");
+                    } else if ("JOB_NOT_FOUND".equals(status)) {
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga não encontrada. Por favor, tente novamente.");
+                    } else {
+                        // Se houver algum outro erro, mostre uma mensagem de erro genérica
+                        JOptionPane.showMessageDialog(panelMenuJob, "Ocorreu um erro. Por favor, tente novamente.");
+                    }
+                }
+            }
+        });
+        btnYesSearchable.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int index = listJobs.getSelectedIndex();
+                if (index == -1) {
+                    // Nenhum item está selecionado na lista
+                    JOptionPane.showMessageDialog(panelMenuJob, "Por favor, selecione uma habilidade.");
+                } else {
+                    JsonObject jobData = (JsonObject) jobset.get(index);
+                    String jobId = (String) jobData.get("id");
+
+                    // Crie o objeto JSON para a operação SET_JOB_AVAILABLE com "YES"
+                    JsonObject setJobAvailableRequest = new JsonObject();
+                    setJobAvailableRequest.put("operation", "SET_JOB_SEARCHABLE");
+                    setJobAvailableRequest.put("token", token);
+                    JsonObject data = new JsonObject();
+                    data.put("id", jobId);
+                    data.put("searchable", "YES");
+                    setJobAvailableRequest.put("data", data);
+
+                    // Envie a solicitação para o servidor e obtenha a resposta
+                    String setJobAvailableJsonRequest = setJobAvailableRequest.toJson();
+                    String setJobAvailableResponse = client.sendRequestToServer(setJobAvailableJsonRequest);
+                    JsonObject setJobAvailableJson = Jsoner.deserialize(setJobAvailableResponse, new JsonObject());
+
+                    // Verifique o status da resposta
+                    String status = (String) setJobAvailableJson.get("status");
+                    if ("SUCCESS".equals(status)) {
+                        // Exiba a mensagem de sucesso
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga definida como disponível com sucesso!");
+                    } else if ("INVALID_TOKEN".equals(status)) {
+                        // Se o token for inválido, mostre uma mensagem de erro
+                        JOptionPane.showMessageDialog(panelMenuJob, "Token inválido. Por favor, tente novamente.");
+                    } else if ("JOB_NOT_FOUND".equals(status)) {
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga não encontrada. Por favor, tente novamente.");
+                    } else {
+                        // Se houver algum outro erro, mostre uma mensagem de erro genérica
+                        JOptionPane.showMessageDialog(panelMenuJob, "Ocorreu um erro. Por favor, tente novamente.");
+                    }
+                }
+            }
+        });
+        btnNoSearchable.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int index = listJobs.getSelectedIndex();
+                if (index == -1) {
+                    // Nenhum item está selecionado na lista
+                    JOptionPane.showMessageDialog(panelMenuJob, "Por favor, selecione uma habilidade.");
+                } else {
+                    JsonObject jobData = (JsonObject) jobset.get(index);
+                    String jobId = (String) jobData.get("id");
+
+                    // Crie o objeto JSON para a operação SET_JOB_AVAILABLE com "YES"
+                    JsonObject setJobAvailableRequest = new JsonObject();
+                    setJobAvailableRequest.put("operation", "SET_JOB_SEARCHABLE");
+                    setJobAvailableRequest.put("token", token);
+                    JsonObject data = new JsonObject();
+                    data.put("id", jobId);
+                    data.put("searchable", "NO");
+                    setJobAvailableRequest.put("data", data);
+
+                    // Envie a solicitação para o servidor e obtenha a resposta
+                    String setJobAvailableJsonRequest = setJobAvailableRequest.toJson();
+                    String setJobAvailableResponse = client.sendRequestToServer(setJobAvailableJsonRequest);
+                    JsonObject setJobAvailableJson = Jsoner.deserialize(setJobAvailableResponse, new JsonObject());
+
+                    // Verifique o status da resposta
+                    String status = (String) setJobAvailableJson.get("status");
+                    if ("SUCCESS".equals(status)) {
+                        // Exiba a mensagem de sucesso
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga definida como indisponível com sucesso!");
+                    } else if ("INVALID_TOKEN".equals(status)) {
+                        // Se o token for inválido, mostre uma mensagem de erro
+                        JOptionPane.showMessageDialog(panelMenuJob, "Token inválido. Por favor, tente novamente.");
+                    } else if ("JOB_NOT_FOUND".equals(status)) {
+                        JOptionPane.showMessageDialog(panelMenuJob, "Vaga não encontrada. Por favor, tente novamente.");
+                    } else {
+                        // Se houver algum outro erro, mostre uma mensagem de erro genérica
+                        JOptionPane.showMessageDialog(panelMenuJob, "Ocorreu um erro. Por favor, tente novamente.");
                     }
                 }
             }

@@ -28,6 +28,8 @@ public class DatabaseInitializer {
             sql = Job.getTableDefinition();
             stmt.execute(sql);
 
+             sql = CandidateJob.getTableDefinition();
+             stmt.execute(sql);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }

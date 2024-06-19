@@ -32,7 +32,7 @@ public class ConnectionView extends JFrame{
                 client.setPort(serverPort);
                 //client.setConnect(true);
                 if (client.isConnect()) {
-                    // Abra a nova tela aqui. Supondo que MainView seja sua nova tela.
+                    // Abra a nova tela aqui.
                      new RoleSelecitonView(client);
                     // Feche a tela de conexão
                     dispose();

@@ -47,10 +47,10 @@ public class CandidateMenuView extends JFrame {
         }
         DefaultListModel<String> skillListModel = new DefaultListModel<>();
         // Crie um modelo de tabela com os títulos das colunas desejados
-        DefaultTableModel tableModel = new DefaultTableModel(new Object[]{"Habilidades", "Experiencia", "ID"}, 0);
+        DefaultTableModel tableModel = new DefaultTableModel(new Object[]{"Habilidades", "Experiência", "ID", "Disponível"}, 0);
 
         tableJob.setModel(tableModel);
-
+        tableModel.addRow(new Object[]{"Habilidades", "Experiencia", "ID", "Disponível"});
         setVisible(true);
         btnLookUp.addActionListener(new ActionListener() {
             @Override
@@ -170,9 +170,10 @@ public class CandidateMenuView extends JFrame {
                     // Adicione as vagas retornadas à tabela de vagas
                     JsonObject data = (JsonObject) searchJsonResponse.get("data");
                     JsonArray jobset = (JsonArray) data.get("jobset");
+                    tableModel.addRow(new Object[]{"Habilidades", "Experiência", "ID", "Disponível"});
                     for (Object jobObj : jobset) {
                         JsonObject job = (JsonObject) jobObj;
-                        tableModel.addRow(new Object[]{job.get("skill").toString(), job.get("experience").toString(), job.get("id").toString()});
+                        tableModel.addRow(new Object[]{job.get("skill").toString(), job.get("experience").toString(), job.get("id").toString(),job.get("available")});
                     }
                     tableModel.fireTableDataChanged();
                 } else if ("INVALID_TOKEN".equals(status)) {

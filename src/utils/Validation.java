@@ -30,7 +30,12 @@ public class Validation {
                 "LOOKUP_JOBSET",
                 "DELETE_JOB",
                 "UPDATE_JOB",
-                "SEARCH_JOB"
+                "SEARCH_JOB",
+                "SET_JOB_AVAILABLE",
+                "SET_JOB_SEARCHABLE",
+                "SEARCH_CANDIDATE",
+                "GET_COMPANY",
+                "CHOOSE_CANDIDATE"
                 );
         return validOperations.contains(operation);
     }

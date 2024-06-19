@@ -12,6 +12,7 @@ import utils.Validation;
 import java.io.PrintWriter;
 import java.sql.*;
 import java.util.Arrays;
+import java.util.Collections;
 
 public class OperationExecutorRecruiter {
     private MessageSender messageSender;
@@ -355,7 +356,6 @@ public class OperationExecutorRecruiter {
        // Verifique se a habilidade é uma das pré-definidas
        if (!Arrays.asList(Skills.getSkills()).contains(skill)) {
            messageSender.sendMessage("INCLUDE_JOB", "SKILL_NOT_EXIST", "");
-
        }else {
 
            try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
@@ -373,7 +373,7 @@ public class OperationExecutorRecruiter {
                        int userId = Integer.parseInt(userIdString);
 
                        // A vaga não existe para o recrutador, então prossiga com a adição da vaga
-                       PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO vagas (habilidade, experiencia) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS);
+                       PreparedStatement insertStmt = conn.prepareStatement("INSERT INTO vagas (habilidade, experiencia, disponivel, divulgavel) VALUES (?, ?, 0, 0)", Statement.RETURN_GENERATED_KEYS);
                        insertStmt.setString(1, skill);
                        insertStmt.setString(2, experience);
                        insertStmt.executeUpdate();
@@ -436,10 +436,19 @@ public class OperationExecutorRecruiter {
                         String experience = rs.getString("experiencia");
                         String id = rs.getString("id");
 
+                        int searchable = rs.getInt("divulgavel"); // Valor 0 ou 1
+                        int available = rs.getInt("disponivel"); // Valor 0 ou 1
+
+                        // Transforme os valores em "NO" ou "YES"
+                        String searchableText = (searchable == 1) ? "YES" : "NO";
+                        String availableText = (available == 1) ? "YES" : "NO";
+
                         JsonObject jobData = new JsonObject();
                         jobData.put("skill", skill);
                         jobData.put("experience", experience);
                         jobData.put("id", id);
+                        jobData.put("searchable", searchableText);
+                        jobData.put("available", availableText);
 
                         jobset.add(jobData);
                     }
@@ -482,8 +491,8 @@ public class OperationExecutorRecruiter {
                     int userId = Integer.parseInt(userIdString);
 
                     // O token é válido, então prossiga com a busca da vaga
-                    PreparedStatement selectStmt = conn.prepareStatement("SELECT * FROM vagas WHERE id = ?"); // Alteração aqui
-                    selectStmt.setString(1, jobId); // Alteração aqui
+                    PreparedStatement selectStmt = conn.prepareStatement("SELECT * FROM vagas WHERE id = ?");
+                    selectStmt.setString(1, jobId);
                     rs = selectStmt.executeQuery();
 
                     if (!rs.next()) {
@@ -493,12 +502,21 @@ public class OperationExecutorRecruiter {
                         // A vaga foi encontrada, então retorne os detalhes da vaga
                         String skill = rs.getString("habilidade");
                         String experience = rs.getString("experiencia");
-                        int id = rs.getInt("id"); // Alteração aqui
+                        int id = rs.getInt("id");
+
+                        int searchable = rs.getInt("divulgavel"); // Valor 0 ou 1
+                        int available = rs.getInt("disponivel"); // Valor 0 ou 1
+
+                        // Transforme os valores em "NO" ou "YES"
+                        String searchableText = (searchable == 1) ? "YES" : "NO";
+                        String availableText = (available == 1) ? "YES" : "NO";
 
                         JsonObject responseData = new JsonObject();
                         responseData.put("skill", skill);
                         responseData.put("experience", experience);
                         responseData.put("id", id);
+                        responseData.put("searchable", searchableText);
+                        responseData.put("available", availableText);
 
                         messageSender.sendMessage("LOOKUP_JOB", "SUCCESS", responseData);
                     }
@@ -533,12 +551,7 @@ public class OperationExecutorRecruiter {
                     Jws<Claims> claims = jwtManager.validateToken(token);
                     String userIdString = (String) claims.getBody().get("id");
                     int userId = Integer.parseInt(userIdString);
-/*
-                    // O token é válido, então prossiga com a exclusão do trabalho
-                    PreparedStatement deleteStmt = conn.prepareStatement("DELETE FROM vagas WHERE habilidade = ?"); // Alteração aqui
-                    deleteStmt.setString(1, habilidade);
-                    int affectedRows = deleteStmt.executeUpdate();
-*/
+
                     PreparedStatement deleteStmt = conn.prepareStatement("DELETE FROM vagas WHERE id = ?"); // Alteração aqui
                     deleteStmt.setString(1, idJob);
                     int affectedRows = deleteStmt.executeUpdate();
@@ -612,4 +625,322 @@ public class OperationExecutorRecruiter {
             }
         }
     }
+    public void setJobAvailable(JsonObject requestJson) {
+        JsonObject data = (JsonObject) requestJson.get("data");
+        String jobId = (String) data.get("id");
+        String availableValue = (String) data.get("available");
+        int availableInt = availableValue.equalsIgnoreCase("YES") ? 1 : 0;
+        String token = (String) requestJson.get("token");
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+            // Verifique o token e recupere o ID do recrutador
+            String tokenSql = "SELECT * FROM active_tokens WHERE token = ?";
+            PreparedStatement tokenPstmt = conn.prepareStatement(tokenSql);
+            tokenPstmt.setString(1, token);
+            ResultSet tokenRs = tokenPstmt.executeQuery();
+
+            if (!tokenRs.next()) {
+                // Token inválido
+                messageSender.sendMessage("SET_JOB_AVAILABLE", "INVALID_TOKEN", "");
+
+            } else {
+                try {
+                    Jws<Claims> claims = jwtManager.validateToken(token);
+                    String userIdString = (String) claims.getBody().get("id");
+                    int userId = Integer.parseInt(userIdString);
+                    //int recrutadorId = tokenRs.getInt("recrutador_id");
+
+                    // Verifique se a vaga pertence ao recrutador
+                    String vagaSql = "SELECT * FROM recrutador_vagas WHERE recrutador_id = ? AND vaga_id = ?";
+                    PreparedStatement vagaPstmt = conn.prepareStatement(vagaSql);
+                    vagaPstmt.setInt(1, userId);
+                    vagaPstmt.setString(2, jobId);
+                    ResultSet vagaRs = vagaPstmt.executeQuery();
+
+                    if (!vagaRs.next()) {
+                        // Vaga não encontrada para o recrutador
+                        messageSender.sendMessage("SET_JOB_AVAILABLE", "JOB_NOT_FOUND", "");
+
+                    } else {
+                        // Atualize o status da vaga
+                        String updateSql = "UPDATE vagas SET disponivel = ? WHERE id = ?";
+                        PreparedStatement updatePstmt = conn.prepareStatement(updateSql);
+                        updatePstmt.setInt(1, availableInt);
+                        updatePstmt.setString(2, jobId);
+                        updatePstmt.executeUpdate();
+
+                        messageSender.sendMessage("SET_JOB_AVAILABLE", "SUCCESS", "");
+                    }
+                } catch (Exception e) {
+                    messageSender.sendMessage("SET_JOB_AVAILABLE", "INVALID_TOKEN", new JsonObject());
+                    System.out.println("invalid token 2: "+e);
+                }
+            }
+        } catch (SQLException e) {
+            messageSender.sendMessage("SET_JOB_AVAILABLE", "INVALID_TOKEN", new JsonObject());
+        }
+    }
+    public void setJobSearchable(JsonObject requestJson) {
+        JsonObject data = (JsonObject) requestJson.get("data");
+        String jobId = (String) data.get("id");
+        String searchableValue = (String) data.get("searchable");
+        int searchableInt = searchableValue.equalsIgnoreCase("YES") ? 1 : 0;
+        String token = (String) requestJson.get("token");
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+            String tokenSql = "SELECT * FROM active_tokens WHERE token = ?";
+            PreparedStatement tokenPstmt = conn.prepareStatement(tokenSql);
+            tokenPstmt.setString(1, token);
+            ResultSet tokenRs = tokenPstmt.executeQuery();
+
+            if (!tokenRs.next()) {
+                // Token inválido
+                messageSender.sendMessage("SET_JOB_SEARCHABLE", "INVALID_TOKEN", "");
+
+            } else {
+                try {
+                    Jws<Claims> claims = jwtManager.validateToken(token);
+                    String userIdString = (String) claims.getBody().get("id");
+                    int userId = Integer.parseInt(userIdString);
+                   // int recrutadorId = tokenRs.getInt("recrutador_id");
+
+                    // Verifique se a vaga pertence ao recrutador
+                    String vagaSql = "SELECT * FROM recrutador_vagas WHERE recrutador_id = ? AND vaga_id = ?";
+                    PreparedStatement vagaPstmt = conn.prepareStatement(vagaSql);
+                    vagaPstmt.setInt(1, userId);
+                    vagaPstmt.setString(2, jobId);
+                    ResultSet vagaRs = vagaPstmt.executeQuery();
+
+                    if (!vagaRs.next()) {
+                        // Vaga não encontrada para o recrutador
+                        messageSender.sendMessage("SET_JOB_SEARCHABLE", "JOB_NOT_FOUND", "");
+
+                    } else {
+
+                        // Atualize o status da vaga
+                        String updateSql = "UPDATE vagas SET divulgavel = ? WHERE id = ?";
+                        PreparedStatement updatePstmt = conn.prepareStatement(updateSql);
+                        updatePstmt.setInt(1, searchableInt);
+                        updatePstmt.setString(2, jobId);
+                        updatePstmt.executeUpdate();
+
+                        messageSender.sendMessage("SET_JOB_SEARCHABLE", "SUCCESS", "");
+                    }
+                }catch (Exception e) {
+                    messageSender.sendMessage("SET_JOB_SEARCHABLE", "INVALID_TOKEN", new JsonObject());
+                    System.out.println("invalid token 2: " + e);
+                }
+            }
+        } catch (SQLException e) {
+            messageSender.sendMessage("SET_JOB_SEARCHABLE", "INVALID_TOKEN", new JsonObject());
+        }
+    }
+    public void executeSearchCandidate(JsonObject requestJson) {
+        JsonObject data = (JsonObject) requestJson.get("data");
+        String token = (String) requestJson.get("token");
+        JsonArray skillArray = data.get("skill") != null ? (JsonArray) data.get("skill") : null;
+        String experience = data.get("experience") != null ? (String) data.get("experience") : null;
+        String filter = data.get("filter") != null ? (String) data.get("filter") : null;
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+            String sql = "SELECT * FROM active_tokens WHERE token = ?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, token);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (!rs.next()) {
+                messageSender.sendMessage("SEARCH_CANDIDATE", "INVALID_TOKEN", new JsonObject());
+                System.out.println("invalid token 1: ");
+            } else {
+                try {
+                    Jws<Claims> claims = jwtManager.validateToken(token);
+                    String userIdString = (String) claims.getBody().get("id");
+                    int userId = Integer.parseInt(userIdString);
+
+                    // Inicializa a consulta SQL base
+                    //String selectSql = "SELECT * FROM candidato_habilidades rv JOIN habilidades v ON rv.habilidade_id = v.id";
+                    String selectSql = "SELECT rv.*, v.habilidade, v.experiencia, c.nome FROM candidato_habilidades rv " +
+                            "JOIN habilidades v ON rv.habilidade_id = v.id " +
+                            "JOIN candidatos c ON rv.candidato_id = c.id";
+                    // Verifica qual tipo de busca é e constrói a consulta SQL de acordo
+                    if (skillArray != null && experience == null) {
+                        // Busca apenas por habilidades
+                        selectSql += " WHERE v.habilidade IN (" + String.join(",", Collections.nCopies(skillArray.size(), "?")) + ")";
+                    } else if (skillArray == null && experience != null) {
+                        // Busca apenas por experiência
+                        selectSql += " WHERE v.experiencia <= ?";
+                    } else if (skillArray != null && experience != null) {
+                        // Busca combinada de habilidades e experiência com filtro lógico
+                        String skillCondition = "v.habilidade IN (" + String.join(",", Collections.nCopies(skillArray.size(), "?")) + ")";
+                        String experienceCondition = "v.experiencia <= ?";
+
+                        if (filter.equals("AND")) {
+                            selectSql += " WHERE (" + skillCondition + ") AND (" + experienceCondition + ")";
+                        } else {
+                            selectSql += " WHERE (" + skillCondition + ") OR (" + experienceCondition + ")";
+                        }
+                    }
+
+                    PreparedStatement selectStmt = conn.prepareStatement(selectSql);
+                    int index = 1;
+
+                    // Define os parâmetros da consulta SQL baseado no tipo de busca
+                    if (skillArray != null) {
+                        for (Object skill : skillArray) {
+                            selectStmt.setString(index++, (String) skill);
+                        }
+                    }
+                    if (experience != null) {
+                        selectStmt.setString(index++, experience);
+                    }
+
+                    rs = selectStmt.executeQuery();
+                    JsonArray profile = new JsonArray();
+
+                    while (rs.next()) {
+                        String foundSkill = rs.getString("habilidade");
+                        String foundExperience = rs.getString("experiencia");
+                        int id = rs.getInt("habilidade_id");
+                        int candidateId = rs.getInt("candidato_id");
+                        String foundName = rs.getString("nome");
+
+                        JsonObject job = new JsonObject();
+                        job.put("skill", foundSkill);
+                        job.put("experience", foundExperience);
+                        job.put("id", id);
+                        job.put("id_user", candidateId);
+                        job.put("name", foundName);
+                        profile.add(job);
+                    }
+
+                    JsonObject responseData = new JsonObject();
+                    responseData.put("profile_size", profile.size());
+                    responseData.put("profile", profile);
+
+                    messageSender.sendMessage("SEARCH_CANDIDATE", "SUCCESS", responseData);
+
+                } catch (Exception e) {
+                    messageSender.sendMessage("SEARCH_CANDIDATE", "INVALID_TOKEN", new JsonObject());
+                    System.out.println("invalid token 2: " + e);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+    }
+    /*public void executeChooseCandidate(JsonObject requestJson) {
+        JsonObject data = (JsonObject) requestJson.get("data");
+        String token = (String) requestJson.get("token");
+        int userId = Integer.parseInt(data.get("id_user").toString());
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+            // Verifique se o token é válido
+            String tokenSql = "SELECT * FROM active_tokens WHERE token = ?";
+            PreparedStatement tokenPstmt = conn.prepareStatement(tokenSql);
+            tokenPstmt.setString(1, token);
+            ResultSet tokenRs = tokenPstmt.executeQuery();
+
+            if (!tokenRs.next()) {
+                messageSender.sendMessage("CHOOSE_CANDIDATE", "INVALID_TOKEN", "");
+                System.out.println("Token inválido.");
+            } else {
+                try {
+                    // Recupere o ID do recrutador a partir do token
+                    Jws<Claims> claims = jwtManager.validateToken(token);
+                    String recruiterIdString = (String) claims.getBody().get("id");
+                    int recruiterId = Integer.parseInt(recruiterIdString);
+
+                    // Verifique se o candidato existe e tem habilidades
+                    String candidateSkillSql = "SELECT habilidade_id FROM candidato_habilidades WHERE candidato_id = ?";
+                    PreparedStatement candidateSkillPstmt = conn.prepareStatement(candidateSkillSql);
+                    candidateSkillPstmt.setInt(1, userId);
+                    ResultSet candidateSkillRs = candidateSkillPstmt.executeQuery();
+
+                    if (candidateSkillRs.next()) {
+                        int candidateSkillId = candidateSkillRs.getInt("habilidade_id");
+
+                        // Salve o mapeamento entre recrutador, candidato e vaga
+                        String insertMappingSql = "INSERT INTO candidato_vagas (recrutador_id, candidato_id) VALUES (?, ?)";
+                        PreparedStatement insertMappingStmt = conn.prepareStatement(insertMappingSql);
+                        insertMappingStmt.setInt(1, recruiterId);
+                        insertMappingStmt.setInt(2, userId);
+                        insertMappingStmt.executeUpdate();
+
+                        messageSender.sendMessage("CHOOSE_CANDIDATE", "SUCCESS", "");
+                    } else {
+                        messageSender.sendMessage("CHOOSE_CANDIDATE", "CANDIDATE_NOT_FOUND", "");
+                    }
+                } catch (Exception e) {
+                    messageSender.sendMessage("CHOOSE_CANDIDATE", "INVALID_TOKEN", new JsonObject());
+                    System.out.println("Erro ao validar o token: " + e);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+    }*/
+    public void executeChooseCandidate(JsonObject requestJson) {
+        JsonObject data = (JsonObject) requestJson.get("data");
+        String token = (String) requestJson.get("token");
+        int userId = Integer.parseInt(data.get("id_user").toString());
+
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:meubanco.db")) {
+            // Verifique se o token é válido
+            String tokenSql = "SELECT * FROM active_tokens WHERE token = ?";
+            PreparedStatement tokenPstmt = conn.prepareStatement(tokenSql);
+            tokenPstmt.setString(1, token);
+            ResultSet tokenRs = tokenPstmt.executeQuery();
+
+            if (!tokenRs.next()) {
+                messageSender.sendMessage("CHOOSE_CANDIDATE", "INVALID_TOKEN", "");
+                System.out.println("Token inválido.");
+            } else {
+                // Verifique se o candidato existe
+                String candidateExistsSql = "SELECT COUNT(*) FROM candidatos WHERE id = ?";
+                PreparedStatement candidateExistsPstmt = conn.prepareStatement(candidateExistsSql);
+                candidateExistsPstmt.setInt(1, userId);
+                ResultSet candidateExistsRs = candidateExistsPstmt.executeQuery();
+
+                if (candidateExistsRs.next() && candidateExistsRs.getInt(1) > 0) {
+                    try {
+                        // Recupere o ID do recrutador a partir do token
+                        Jws<Claims> claims = jwtManager.validateToken(token);
+                        String recruiterIdString = (String) claims.getBody().get("id");
+                        int recruiterId = Integer.parseInt(recruiterIdString);
+
+                        String mappingExistsSql = "SELECT COUNT(*) FROM candidato_vagas WHERE recrutador_id = ? AND candidato_id = ?";
+                        PreparedStatement mappingExistsPstmt = conn.prepareStatement(mappingExistsSql);
+                        mappingExistsPstmt.setInt(1, recruiterId);
+                        mappingExistsPstmt.setInt(2, userId);
+                        ResultSet mappingExistsRs = mappingExistsPstmt.executeQuery();
+
+                        if (mappingExistsRs.next() && mappingExistsRs.getInt(1) > 0) {
+                            messageSender.sendMessage("CHOOSE_CANDIDATE", "CANDIDATE_NOT_FOUND", "");
+                            System.out.println("Candidato já escolhido anteriormente.");
+                        } else {
+                            // Salve o mapeamento entre recrutador e candidato
+                            String insertMappingSql = "INSERT INTO candidato_vagas (recrutador_id, candidato_id) VALUES (?, ?)";
+                            PreparedStatement insertMappingStmt = conn.prepareStatement(insertMappingSql);
+                            insertMappingStmt.setInt(1, recruiterId);
+                            insertMappingStmt.setInt(2, userId);
+                            insertMappingStmt.executeUpdate();
+
+                            messageSender.sendMessage("CHOOSE_CANDIDATE", "SUCCESS", "");
+                        }
+                    }catch (Exception e) {
+                        System.err.println(e.getMessage());
+                        messageSender.sendMessage("CHOOSE_CANDIDATE", "CANDIDATE_NOT_FOUND", "");
+                        System.out.println("candidate not found 1.");
+                    }
+                    } else {
+                    messageSender.sendMessage("CHOOSE_CANDIDATE", "CANDIDATE_NOT_FOUND", "");
+                    System.out.println("candidate not found 2.");
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+    }
+
+
 }

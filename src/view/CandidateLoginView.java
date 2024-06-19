@@ -23,8 +23,24 @@ public class CandidateLoginView extends JFrame{
         setContentPane(panelCandidateLogin);
         setTitle("Entrar como");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(250,160);
+        setSize(290,180);
         setLocationRelativeTo(null);
+        JMenuBar menuBar = new JMenuBar();
+
+        JMenu menu = new JMenu("Menu");
+
+        JMenuItem menuItem = new JMenuItem("Voltar");
+        menuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                new RoleSelecitonView(client);
+                dispose();
+            }
+        });
+        menu.add(menuItem);
+        menuBar.add(menu);
+        setJMenuBar(menuBar);
+
         setVisible(true);
         entrarButton.addActionListener(new ActionListener() {
             @Override
@@ -45,6 +61,14 @@ public class CandidateLoginView extends JFrame{
                 if ("SUCCESS".equals(status)) {
                     // Se o login for bem-sucedido, vá para a próxima tela
                     new CandidateMenuView(client,token);
+                    JsonObject request = new JsonObject();
+                    request.put("operation", "GET_COMPANY");
+                    request.put("token", token);
+                    request.put("data", new JsonObject());
+                    String jsonRequest = request.toJson();
+                    String response = client.sendRequestToServer(jsonRequest);
+                    JsonObject deleteJobJson = Jsoner.deserialize(response, new JsonObject());
+
                     dispose();
                 } else if ("INVALID_LOGIN".equals(status)) {
                     JOptionPane.showMessageDialog(panelCandidateLogin, "Login inválido. Por favor, tente novamente.");

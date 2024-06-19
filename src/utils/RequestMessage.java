@@ -132,6 +132,8 @@ public class RequestMessage {
         if (experience != null) {
             dataObject.put("experience", experience);
         }
+        dataObject.put("searchable", "NO");
+        dataObject.put("available", "NO");
         jsonObject.put("data", dataObject);
         return jsonObject.toJson();
     }

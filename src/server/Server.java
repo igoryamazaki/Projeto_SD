@@ -6,6 +6,7 @@ import com.github.cliftonlabs.json_simple.Jsoner;
 import db.DatabaseInitializer;
 import utils.MessageSender;
 import utils.Validation;
+import view.ConnectedClientsView;
 
 import java.io.*;
 import java.net.ServerSocket;
@@ -14,11 +15,11 @@ import java.net.Socket;
 public class Server extends Thread {
     private Socket clientSocket;
     private BufferedWriter fileWriter;
-    String key = "DISTRIBUIDOS";
 
     public Server(Socket clientSoc, BufferedWriter writer) {
         clientSocket = clientSoc;
         fileWriter = writer;
+
         start();
     }
 
@@ -90,6 +91,9 @@ public class Server extends Thread {
                             case "SEARCH_JOB":
                                 candidate.executeSearchJob(requestJson);
                                 break;
+                            case "GET_COMPANY":
+                                candidate.executeGetCompany(requestJson);
+                                break;
                             case "LOGIN_RECRUITER":
                                 recruiter.executeLoginRecruiter(requestJson);
                                 break;
@@ -123,6 +127,18 @@ public class Server extends Thread {
                             case "UPDATE_JOB":
                                 recruiter.executeUpdateJob(requestJson);
                                 break;
+                            case "SET_JOB_AVAILABLE":
+                                recruiter.setJobAvailable(requestJson);
+                                break;
+                            case "SET_JOB_SEARCHABLE":
+                                recruiter.setJobSearchable(requestJson);
+                                break;
+                            case "SEARCH_CANDIDATE":
+                                recruiter.executeSearchCandidate(requestJson);
+                                break;
+                            case "CHOOSE_CANDIDATE":
+                                recruiter.executeChooseCandidate(requestJson);
+                                break;
                         }
                     }
                 }
@@ -143,6 +159,7 @@ public class Server extends Thread {
         }
     }
 
+
     public static void main(String[] args) {
         DatabaseInitializer.initialize();
         try {
@@ -160,15 +177,15 @@ public class Server extends Thread {
 
             try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
                 System.out.println("Servidor iniciado na porta " + serverPort);
-
+                ConnectedClientsView connectedClientsScreen = new ConnectedClientsView(); ////
                 boolean running = true;
                 while (running) {
                     System.out.println("Aguardando conexão...");
                     Socket clientSocket = serverSocket.accept();
                     System.out.println("Cliente conectado: " + clientSocket);
-
                     // Crie uma nova instância da classe Server para cada cliente e inicie a thread
                     Server server = new Server(clientSocket, fileWriter);
+                    connectedClientsScreen.updateClientInfo(clientSocket);
                     if (!server.isAlive()) {
                         server.start();
                     }
