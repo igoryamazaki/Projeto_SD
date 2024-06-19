@@ -21,27 +21,10 @@ public class CandidateLoginView extends JFrame{
     public CandidateLoginView(Client client) {
         this.client = client;
         setContentPane(panelCandidateLogin);
-        setTitle("Login Candidato");
+        setTitle("Entrar como");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(290,180);
+        setSize(250,160);
         setLocationRelativeTo(null);
-
-        JMenuBar menuBar = new JMenuBar();
-
-        JMenu menu = new JMenu("Menu");
-
-        JMenuItem menuItem = new JMenuItem("Voltar");
-        menuItem.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new RoleSelecitonView(client);
-                dispose();
-            }
-        });
-        menu.add(menuItem);
-        menuBar.add(menu);
-        setJMenuBar(menuBar);
-
         setVisible(true);
         entrarButton.addActionListener(new ActionListener() {
             @Override
@@ -65,6 +48,8 @@ public class CandidateLoginView extends JFrame{
                     dispose();
                 } else if ("INVALID_LOGIN".equals(status)) {
                     JOptionPane.showMessageDialog(panelCandidateLogin, "Login inválido. Por favor, tente novamente.");
+                } else if ("USER_NOT_FOUND".equals(status)) {
+                    JOptionPane.showMessageDialog(panelCandidateLogin, "Usuário não encontrado. Por favor, verifique suas credenciais e tente novamente.");
                 } else {
                     JOptionPane.showMessageDialog(panelCandidateLogin, "Ocorreu um erro. Por favor, tente novamente.");
                 }
